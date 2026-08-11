@@ -1,0 +1,42 @@
+Metadata-Version: 2.4
+Name: quant-finbert
+Version: 0.1.0
+Summary: Self-hosted FinBERT sentiment API
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: bottle>=0.13
+Requires-Dist: waitress>=3.0
+Requires-Dist: pydantic>=2.7
+Requires-Dist: pydantic-settings>=2.3
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: webtest>=3; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: mypy>=1.11; extra == "dev"
+Requires-Dist: bandit>=1.7; extra == "dev"
+
+# quant-finbert
+
+Self-hosted FinBERT sentiment service for local Docker use.
+
+## Local development
+
+```bash
+pip install .[dev]
+python -m quant_finbert
+```
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+The API listens on port `8023` by default.
+
+## Environment
+
+- `API_LISTEN_ADDRESS` default: `0.0.0.0`
+- `API_PORT` default: `8023`
+- `LOG_LEVEL` default: `INFO`
+- `MODEL_NAME` default: `heuristic-v0` for the initial slice
