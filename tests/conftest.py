@@ -10,5 +10,6 @@ def app() -> TestApp:
     sentiment_service = SentimentService(
         analyzer=HeuristicSentimentAnalyzer("heuristic-v0"),
         model_name="heuristic-v0",
+        repository=None,
     )
     return TestApp(create_app(sentiment_service=sentiment_service))

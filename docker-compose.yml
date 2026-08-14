@@ -5,5 +5,6 @@ services:
       API_LISTEN_ADDRESS: 0.0.0.0
       API_PORT: "8023"
       LOG_LEVEL: INFO
+      DATABASE_URL: postgresql+psycopg://quant:quant@q
     ports:
       - "8023:8023"
