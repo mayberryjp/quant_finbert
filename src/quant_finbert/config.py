@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     api_port: int = Field(8023, validation_alias="API_PORT")
     log_level: str = Field("INFO", validation_alias="LOG_LEVEL")
     model_name: str = Field("ProsusAI/finbert", validation_alias="MODEL_NAME")
+    database_url: str = Field("sqlite:///./quant_finbert.db", validation_alias="DATABASE_URL")
 
 
 settings = Settings()  # type: ignore[call-arg]

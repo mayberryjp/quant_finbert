@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from typing import Protocol, cast
 
 from quant_finbert.config import Settings
+from quant_finbert.db import SqlAlchemySentimentRepository
 from quant_finbert.domain.finbert import FinBertSentimentAnalyzer
 
 _POSITIVE_WORDS = {
@@ -105,9 +107,15 @@ class FinBertSentimentAdapter:
 
 
 class SentimentService:
-    def __init__(self, analyzer: SentimentAnalyzer, model_name: str) -> None:
+    def __init__(
+        self,
+        analyzer: SentimentAnalyzer,
+        model_name: str,
+        repository: SqlAlchemySentimentRepository | None = None,
+    ) -> None:
         self._analyzer = analyzer
         self._model_name = model_name
+        self._repository = repository
 
     def readiness(self) -> tuple[bool, str]:
         return self._analyzer.readiness()
@@ -133,9 +141,24 @@ class SentimentService:
             response["source"] = source
         if request_id is not None:
             response["request_id"] = request_id
+
+        if self._repository is not None:
+            self._repository.save_result(
+                request_id=request_id,
+                source=source,
+                model=str(model or result.model),
+                text=text,
+                sentiment=str(result.label),
+                confidence=float(result.confidence),
+                score=int(result.score),
+                response_payload=json.dumps(response, sort_keys=True),
+            )
+
         return response
 
 
 def build_sentiment_service(settings: Settings) -> SentimentService:
+    repository = SqlAlchemySentimentRepository(settings.database_url)
+    repository.init_db()
     analyzer = FinBertSentimentAdapter(FinBertSentimentAnalyzer(settings.model_name))
-    return SentimentService(analyzer=analyzer, model_name=settings.model_name)
+    return SentimentService(analyzer=analyzer, model_name=settings.model_name, repository=repository)

@@ -5,6 +5,5 @@ services:
       API_LISTEN_ADDRESS: 0.0.0.0
       API_PORT: "8023"
       LOG_LEVEL: INFO
-      MODEL_NAME: heuristic-v0
     ports:
       - "8023:8023"
