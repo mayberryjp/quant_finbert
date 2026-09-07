@@ -4,7 +4,7 @@ import os
 from collections.abc import Generator
 from datetime import datetime, tzinfo
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, event, text
+from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 SCHEMA = "finbert"
@@ -21,20 +21,6 @@ def local_timezone() -> tzinfo:
 
 def local_now() -> datetime:
     return datetime.now(local_timezone())
-
-
-def _bind_local_timezone(engine: object) -> None:
-    tz_name = os.environ.get("TZ") or str(local_timezone())
-
-    @event.listens_for(engine, "connect")
-    def _set_session_timezone(dbapi_connection: object, _connection_record: object) -> None:
-        if engine.dialect.name != "postgresql":  # type: ignore[attr-defined]
-            return
-        cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
-        try:
-            cursor.execute(f"SET TIME ZONE '{tz_name.replace(chr(39), chr(39) * 2)}'")
-        finally:
-            cursor.close()
 
 
 class Base(DeclarativeBase):
@@ -65,7 +51,6 @@ class SqlAlchemySentimentRepository:
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
         self.engine = _apply_schema(create_engine(database_url))
-        _bind_local_timezone(self.engine)
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def init_db(self) -> None:
