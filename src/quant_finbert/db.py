@@ -1,10 +1,38 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Generator
-from datetime import datetime, timezone
+from datetime import datetime, tzinfo
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine
+from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+
+def local_timezone() -> tzinfo:
+    tz_name = os.environ.get("TZ")
+    if tz_name:
+        from zoneinfo import ZoneInfo
+
+        return ZoneInfo(tz_name)
+    return datetime.now().astimezone().tzinfo  # type: ignore[return-value]
+
+
+def local_now() -> datetime:
+    return datetime.now(local_timezone())
+
+
+def _bind_local_timezone(engine: object) -> None:
+    tz_name = os.environ.get("TZ") or str(local_timezone())
+
+    @event.listens_for(engine, "connect")
+    def _set_session_timezone(dbapi_connection: object, _connection_record: object) -> None:
+        if engine.dialect.name != "postgresql":  # type: ignore[attr-defined]
+            return
+        cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
+        try:
+            cursor.execute("SET TIME ZONE %s", (tz_name,))
+        finally:
+            cursor.close()
 
 
 class Base(DeclarativeBase):
@@ -25,7 +53,7 @@ class SentimentRecord(Base):
     response_payload: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=local_now,
         nullable=False,
     )
 
@@ -34,6 +62,7 @@ class SqlAlchemySentimentRepository:
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
         self.engine = create_engine(database_url)
+        _bind_local_timezone(self.engine)
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def init_db(self) -> None:
