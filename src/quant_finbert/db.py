@@ -4,8 +4,10 @@ import os
 from collections.abc import Generator
 from datetime import datetime, tzinfo
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, event
+from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, event, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+SCHEMA = "finbert"
 
 
 def local_timezone() -> tzinfo:
@@ -41,6 +43,7 @@ class Base(DeclarativeBase):
 
 class SentimentRecord(Base):
     __tablename__ = "sentiment_requests"
+    __table_args__ = {"schema": SCHEMA}
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     request_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
@@ -61,12 +64,12 @@ class SentimentRecord(Base):
 class SqlAlchemySentimentRepository:
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
-        self.engine = create_engine(database_url)
+        self.engine = _apply_schema(create_engine(database_url))
         _bind_local_timezone(self.engine)
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def init_db(self) -> None:
-        Base.metadata.create_all(bind=self.engine)
+        init_db(self.engine)
 
     def save_result(
         self,
@@ -97,12 +100,23 @@ class SqlAlchemySentimentRepository:
         return record
 
 
+def _apply_schema(engine: object) -> object:
+    # Postgres keeps the finbert schema; other dialects don't support schemas,
+    # so translate it away.
+    if engine.dialect.name != "postgresql":  # type: ignore[attr-defined]
+        return engine.execution_options(schema_translate_map={SCHEMA: None})  # type: ignore[attr-defined]
+    return engine
+
+
 def init_db(engine: object) -> None:
+    if engine.dialect.name == "postgresql":  # type: ignore[attr-defined]
+        with engine.begin() as connection:  # type: ignore[attr-defined]
+            connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{SCHEMA}"'))
     Base.metadata.create_all(bind=engine)
 
 
 def get_session() -> Generator[Session, None, None]:
-    engine = create_engine("sqlite:///./quant_finbert.db")
+    engine = _apply_schema(create_engine("sqlite:///./quant_finbert.db"))
     session = sessionmaker(bind=engine, expire_on_commit=False)()
     try:
         yield session

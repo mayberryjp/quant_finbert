@@ -4,10 +4,10 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 from quant_finbert.config import settings
-from quant_finbert.db import Base
+from quant_finbert.db import Base, SCHEMA
 
 config = context.config
 
@@ -18,6 +18,16 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 
+VERSION_TABLE = "alembic_version_quant_finbert"
+
+
+def include_name(name: str | None, type_: str, parent_names: dict[str, str | None]) -> bool:
+    # In a shared, multi-project database only inspect our own schema so
+    # autogenerate never touches other projects' objects.
+    if type_ == "schema":
+        return name == SCHEMA
+    return True
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -26,7 +36,10 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
-        version_table="alembic_version_quant_finbert",
+        version_table=VERSION_TABLE,
+        version_table_schema=SCHEMA,
+        include_schemas=True,
+        include_name=include_name,
     )
 
     with context.begin_transaction():
@@ -41,11 +54,18 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        if connection.dialect.name == "postgresql":
+            connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{SCHEMA}"'))
+            connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            version_table="alembic_version_quant_finbert",
+            version_table=VERSION_TABLE,
+            version_table_schema=SCHEMA,
+            include_schemas=True,
+            include_name=include_name,
         )
 
         with context.begin_transaction():

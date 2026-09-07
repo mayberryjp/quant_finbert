@@ -15,8 +15,11 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+SCHEMA = "finbert"
+
 
 def upgrade() -> None:
+    op.execute(f'CREATE SCHEMA IF NOT EXISTS "{SCHEMA}"')
     op.create_table(
         "sentiment_requests",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -30,14 +33,15 @@ def upgrade() -> None:
         sa.Column("response_payload", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        schema=SCHEMA,
     )
-    op.create_index(op.f("ix_sentiment_requests_request_id"), "sentiment_requests", ["request_id"], unique=False)
-    op.create_index(op.f("ix_sentiment_requests_source"), "sentiment_requests", ["source"], unique=False)
-    op.create_index(op.f("ix_sentiment_requests_sentiment"), "sentiment_requests", ["sentiment"], unique=False)
+    op.create_index(op.f("ix_sentiment_requests_request_id"), "sentiment_requests", ["request_id"], unique=False, schema=SCHEMA)
+    op.create_index(op.f("ix_sentiment_requests_source"), "sentiment_requests", ["source"], unique=False, schema=SCHEMA)
+    op.create_index(op.f("ix_sentiment_requests_sentiment"), "sentiment_requests", ["sentiment"], unique=False, schema=SCHEMA)
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_sentiment_requests_sentiment"), table_name="sentiment_requests")
-    op.drop_index(op.f("ix_sentiment_requests_source"), table_name="sentiment_requests")
-    op.drop_index(op.f("ix_sentiment_requests_request_id"), table_name="sentiment_requests")
-    op.drop_table("sentiment_requests")
+    op.drop_index(op.f("ix_sentiment_requests_sentiment"), table_name="sentiment_requests", schema=SCHEMA)
+    op.drop_index(op.f("ix_sentiment_requests_source"), table_name="sentiment_requests", schema=SCHEMA)
+    op.drop_index(op.f("ix_sentiment_requests_request_id"), table_name="sentiment_requests", schema=SCHEMA)
+    op.drop_table("sentiment_requests", schema=SCHEMA)
