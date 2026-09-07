@@ -32,7 +32,7 @@ def _bind_local_timezone(engine: object) -> None:
             return
         cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
         try:
-            cursor.execute("SET TIME ZONE %s", (tz_name,))
+            cursor.execute(f"SET TIME ZONE '{tz_name.replace(chr(39), chr(39) * 2)}'")
         finally:
             cursor.close()
 
